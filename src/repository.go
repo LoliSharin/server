@@ -2,11 +2,15 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+var ErrFileNotFound = errors.New("файл не найден")
 
 type FileMetadata struct {
 	ID        int
@@ -17,6 +21,7 @@ type FileMetadata struct {
 	SHA256    string
 	CreatedAt time.Time
 }
+
 type FileRepo struct {
 	pool *pgxpool.Pool
 }
@@ -24,6 +29,7 @@ type FileRepo struct {
 func NewFileRepository(pool *pgxpool.Pool) *FileRepo {
 	return &FileRepo{pool: pool}
 }
+
 func (r *FileRepo) InitSchema(ctx context.Context) error {
 	query := `
 	CREATE TABLE IF NOT EXISTS files (
@@ -37,10 +43,11 @@ func (r *FileRepo) InitSchema(ctx context.Context) error {
 	);`
 	_, err := r.pool.Exec(ctx, query)
 	if err != nil {
-		return fmt.Errorf("ошибка создания файла в бд: %w", err)
+		return fmt.Errorf("ошибка инициализации таблицы files в бд: %w", err)
 	}
 	return nil
 }
+
 func (r *FileRepo) Save(ctx context.Context, meta *FileMetadata) error {
 	query := `
 		INSERT INTO files (file_name, file_path, size, mime_type, sha256)
@@ -52,15 +59,16 @@ func (r *FileRepo) Save(ctx context.Context, meta *FileMetadata) error {
 		query,
 		meta.FileName, // $1
 		meta.FilePath, // $2
-		meta.Size,     // $5
-		meta.MIMEType, // $3
-		meta.SHA256,   // $4
+		meta.Size,     // $3
+		meta.MIMEType, // $4
+		meta.SHA256,   // $5
 	).Scan(&meta.ID, &meta.CreatedAt)
 	if err != nil {
-		return fmt.Errorf("не получилось скопировать данные в бд: %w", err)
+		return fmt.Errorf("не получилось сохранить данные в бд: %w", err)
 	}
 	return nil
 }
+
 func (r *FileRepo) GetByID(ctx context.Context, id int) (*FileMetadata, error) {
 	query := `
 		SELECT id, file_name, file_path, size, mime_type, sha256, created_at
@@ -79,7 +87,10 @@ func (r *FileRepo) GetByID(ctx context.Context, id int) (*FileMetadata, error) {
 		&meta.CreatedAt,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("файл с id %d не найден: %w", id, err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrFileNotFound
+		}
+		return nil, fmt.Errorf("ошибка запроса файла с id %d: %w", id, err)
 	}
 
 	return &meta, nil

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"mime"
 	"os"
 	"path/filepath"
 	"time"
@@ -26,12 +27,11 @@ func NewStorageService(repo *FileRepo, uploadDir string) *StorageService {
 func (s *StorageService) GetFileForStream(ctx context.Context, id int) (*os.File, *FileMetadata, error) {
 	meta, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Не найден файл: %w", err)
-
+		return nil, nil, err
 	}
 	readFile, err := os.Open(meta.FilePath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Файл не найден на диске или не удалось его прочитать: %w", err)
+		return nil, nil, fmt.Errorf("файл не найден на диске: %w", err)
 	}
 	return readFile, meta, nil
 }
@@ -42,14 +42,22 @@ func (s *StorageService) SaveUploadedFile(
 	mimeType string,
 	src io.Reader,
 ) (*FileMetadata, error) {
-	safeName := fmt.Sprintf("%d_%s", time.Now().Unix(), filepath.Base(fileName))
+	safeName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), filepath.Base(fileName))
 	fullPath := filepath.Join(s.uploadDir, safeName)
 
 	dst, err := os.Create(fullPath)
 	if err != nil {
 		return nil, fmt.Errorf("не удалось создать файл на диске: %w", err)
 	}
-	defer dst.Close()
+
+	// Флаг успешного сохранения: при любой ошибке файл закрывается и удаляется с диска
+	var success bool
+	defer func() {
+		if !success {
+			_ = dst.Close()
+			_ = os.Remove(fullPath)
+		}
+	}()
 
 	hasher := sha256.New()
 	tee := io.TeeReader(src, hasher)
@@ -57,6 +65,14 @@ func (s *StorageService) SaveUploadedFile(
 	size, err := io.Copy(dst, tee)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка записи потока данных: %w", err)
+	}
+
+	if err := dst.Close(); err != nil {
+		return nil, fmt.Errorf("ошибка закрытия файла на диске: %w", err)
+	}
+
+	if mimeType == "" {
+		mimeType = mime.TypeByExtension(filepath.Ext(fileName))
 	}
 
 	hashSum := hex.EncodeToString(hasher.Sum(nil))
@@ -70,9 +86,9 @@ func (s *StorageService) SaveUploadedFile(
 	}
 
 	if err := s.repo.Save(ctx, meta); err != nil {
-		_ = os.Remove(fullPath)
 		return nil, fmt.Errorf("не удалось сохранить метаданные: %w", err)
 	}
 
+	success = true
 	return meta, nil
 }

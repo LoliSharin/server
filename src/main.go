@@ -78,7 +78,7 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	meta, err := h.storage.SaveUploadedFile(
 		r.Context(),
 		handler.Filename,
-		handler.Header.Get("Context-type"),
+		handler.Header.Get("Content-type"),
 		file,
 	)
 	if err != nil {

@@ -20,6 +20,12 @@ func TestValidateMedia(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
+			name:        "Корректный JPEG файл",
+			filename:    "photo.jpeg",
+			size:        500 * 1024,
+			expectedErr: nil,
+		},
+		{
 			name:        "Файл с пустым именем",
 			filename:    "   ",
 			size:        1024,

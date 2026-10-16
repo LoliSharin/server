@@ -9,7 +9,7 @@ import (
 )
 
 func ConnectionDB(dsn string) (*pgxpool.Pool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	cfg, err := pgxpool.ParseConfig(dsn)
@@ -18,8 +18,8 @@ func ConnectionDB(dsn string) (*pgxpool.Pool, error) {
 	}
 	cfg.MaxConns = 20
 	cfg.MinConns = 5
-	cfg.MaxConnIdleTime = 20 * time.Minute
-	cfg.MaxConnLifetime = 15 * time.Minute
+	cfg.MaxConnIdleTime = 5 * time.Minute
+	cfg.MaxConnLifetime = 1 * time.Hour
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
