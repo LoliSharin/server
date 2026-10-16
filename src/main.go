@@ -7,10 +7,9 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
-
-const uploadDir = "./uploading"
 
 type FileHandler struct {
 	storage *StorageService
@@ -92,11 +91,13 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
+	cfg := LoadConfig()
+
+	if err := os.MkdirAll(cfg.UploadDir, os.ModePerm); err != nil {
 		log.Fatalf("Не удалось создать папку загрузок: %v", err)
 	}
-	dsn := "postgres://petya_db:arelun06_db@localhost:5666/Data_cloud"
-	pool, err := ConnectionDB(dsn)
+
+	pool, err := ConnectionDB(cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("не удалось подключиться к базе данных: %v", err)
 		return
@@ -110,13 +111,17 @@ func main() {
 	}
 	log.Println("Таблица files успешно проверена/создана в БД")
 
-	repo.InitSchema(context.Background())
-	storage := NewStorageService(repo, uploadDir)
+	storage := NewStorageService(repo, cfg.UploadDir)
 	handler := NewFileHandler(storage)
 	http.HandleFunc("/api/v1/upload", enableCors(handler.Upload))
 	http.HandleFunc("/api/v1/stream", enableCors(handler.Streamfile))
-	fmt.Println("Storage Service запущен на порту :8080")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+
+	serverAddr := cfg.ServerPort
+	if !strings.HasPrefix(serverAddr, ":") {
+		serverAddr = ":" + serverAddr
+	}
+	fmt.Printf("Storage Service запущен на порту %s\n", serverAddr)
+	if err := http.ListenAndServe(serverAddr, nil); err != nil {
 		log.Fatalf("Ошибка сервера: %v", err)
 	}
 }

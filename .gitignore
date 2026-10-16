@@ -1,0 +1,5 @@
+uploading/
+.env
+*.exe
+*.out
+*.test
