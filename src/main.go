@@ -6,11 +6,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
-	"strings"
 	"time"
-)
+	"errors"
+	"syscall"
 
+)
 type FileHandler struct {
 	storage *StorageService
 }
@@ -18,6 +20,7 @@ type FileHandler struct {
 func NewFileHandler(storage *StorageService) *FileHandler {
 	return &FileHandler{storage: storage}
 }
+
 
 func enableCors(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -85,7 +88,7 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Context-type", "application/json")
+	w.Header().Set("Content-type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(fmt.Sprintf(`{"status":"ok", "id":%d, "sha256":"%s"}`, meta.ID, meta.SHA256)))
 }
@@ -102,6 +105,7 @@ func main() {
 		log.Fatalf("не удалось подключиться к базе данных: %v", err)
 		return
 	}
+	defer pool.Close()
 	repo := NewFileRepository(pool)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -116,12 +120,24 @@ func main() {
 	http.HandleFunc("/api/v1/upload", enableCors(handler.Upload))
 	http.HandleFunc("/api/v1/stream", enableCors(handler.Streamfile))
 
-	serverAddr := cfg.ServerPort
-	if !strings.HasPrefix(serverAddr, ":") {
-		serverAddr = ":" + serverAddr
+	sdr := &http.Server{
+		Addr:           ":" + cfg.ServerPort,
+		Handler:        nil,
+		ReadHeaderTimeout: 5 * time.Second,
+		MaxHeaderBytes: 1 << 20,
 	}
-	fmt.Printf("Storage Service запущен на порту %s\n", serverAddr)
-	if err := http.ListenAndServe(serverAddr, nil); err != nil {
-		log.Fatalf("Ошибка сервера: %v", err)
-	}
+	fmt.Printf("Storage Service запущен на порту %s\n", sdr.Addr)
+	go func(){	
+		if err := sdr.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("Ошибка сервера: %v", err)
+		}
+	}()
+	sigCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	<-sigCtx.Done()
+	log.Println("Получен сигнал завершения, начинаем остановку...")
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+	sdr.Shutdown(shutdownCtx)
+	log.Println("Сервер успешно остановлен")
 }
