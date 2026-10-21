@@ -1,4 +1,19 @@
 services:
+  app:
+    build: .
+    container_name: media_server
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: "postgres://petya_db:arelun06_db@postgres_db:5432/Data_cloud?sslmode=disable"
+      SERVER_PORT: "8080"
+      UPLOAD_DIR: "./uploading"
+    volumes:
+      - ./uploading:/app/uploading
+    depends_on:
+      postgres_db:
+        condition: service_healthy
   postgres_db:
     image: postgres:16-alpine
     container_name: Data_cloud
@@ -11,6 +26,11 @@ services:
       - "5666:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U petya_db -d Data_cloud"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   pgdata:
