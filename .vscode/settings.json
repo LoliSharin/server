@@ -4,6 +4,14 @@
         "healthcheck",
         "isready",
         "petya",
-        "pgdata"
-    ]
+        "pgdata",
+        "выиграть",
+        "должен",
+        "майкрасофт",
+        "победил",
+        "сломался",
+        "Тест"
+    ],
+    "commentTranslate.targetLanguage": "ru",
+    "commentTranslate.hover.enabled": true
 }
