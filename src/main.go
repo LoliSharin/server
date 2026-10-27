@@ -2,16 +2,15 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
-	"time"
-	"errors"
 	"syscall"
-
+	"time"
 )
 type FileHandler struct {
 	storage *StorageService
@@ -90,7 +89,7 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(fmt.Sprintf(`{"status":"ok", "id":%d, "sha256":"%s"}`, meta.ID, meta.SHA256)))
+	w.Write(fmt.Appendf(nil, "status: ok; id: %d; SHA256: %s", meta.ID, meta.SHA256))
 }
 
 func main() {

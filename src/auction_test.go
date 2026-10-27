@@ -30,7 +30,7 @@ func TestProvidersMock(t *testing.T){
 	defer cancel()
 	
 	bestBid, found := RunAuction(ctx, tests)
-	if bestBid.ProviderName != "Microsoft" { t.Errorf("Тест сломался, должен выиграть майкрасофт, но победил ", bestBid) }
-	fmt.Printf("Found: %v, Best Bid: %+v\n", found, bestBid)
+	if bestBid.ProviderName != "Microsoft" { t.Errorf("Тест сломался, должен выиграть майкрасофт, но победил %v", bestBid) }
+	fmt.Printf("Found: %v, Best Bid: %+v\n", found, bestBid)	
 }
 
