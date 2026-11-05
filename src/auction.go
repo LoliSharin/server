@@ -64,7 +64,7 @@ func RunAuction(ctx context.Context, providers []BidProvider) (Bid, bool) {
 			if !found || bid.Price > bestBid.Price {
 				bestBid = bid
 				found = true
-			}
+			} 
 		}
 	}
 }
