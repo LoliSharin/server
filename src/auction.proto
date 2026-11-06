@@ -1,0 +1,13 @@
+syntax = "proto3";
+package auction;
+option go_package = "./pb";
+message BidResponse{
+    string video = 1;
+}
+message BidRequest{
+    string provider = 1;
+    double price = 2;
+}
+service BidderService{
+    rpc GetBid(BidRequest) returns (BidResponse);
+}
