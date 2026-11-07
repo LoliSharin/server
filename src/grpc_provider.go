@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-
-	"google.golang.org/grpc"
 )
 
 type GRPCProvider struct{
@@ -20,7 +18,7 @@ type BidResponse struct {
 }
 
 type BidderServiceClient interface{
-	GetBid(ctx context.Context, in *BidRequest, opt ...grpc.PeerCallOption) (*BidResponse, error)
+	GetBid(ctx context.Context, in *BidRequest) (*BidResponse, error)
 }
 
 func (g *GRPCProvider)GetBid(ctx context.Context)(Bid, error){
